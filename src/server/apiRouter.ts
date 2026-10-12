@@ -1,4 +1,6 @@
 import express, { Request, Response } from 'express';
+import { spawn, exec } from 'child_process';
+import { promisify } from 'util';
 import {
   callGemini,
   logToNeatlogs,
@@ -8,10 +10,13 @@ import {
 } from './agentWorkflow.ts';
 import { testGitHubConnection } from './githubService.ts';
 
+const execAsync = promisify(exec);
 export const apiRouter = express.Router();
 
 // Parse JSON bodies
 apiRouter.use(express.json());
+
+let activeEntireProc: any = null;
 
 /**
  * Health check & environment status
@@ -85,6 +90,77 @@ apiRouter.post('/run-agents', async (req: Request, res: Response) => {
   } finally {
     res.write('event: end\ndata: [DONE]\n\n');
     res.end();
+  }
+});
+
+/**
+ * Trigger Entire CLI device login flow on-demand
+ */
+apiRouter.post('/entire/login', (req: Request, res: Response) => {
+  try {
+    if (activeEntireProc) {
+      try {
+        activeEntireProc.kill();
+      } catch {}
+    }
+
+    const proc = spawn('entire', ['login', '--device'], {
+      env: { ...process.env, ACCESSIBLE: '1' },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    activeEntireProc = proc;
+
+    let responded = false;
+    let fullOutput = '';
+
+    const timeout = setTimeout(() => {
+      if (!responded) {
+        responded = true;
+        res.status(504).json({ error: 'Timed out waiting for device code from Entire CLI.' });
+      }
+    }, 8000);
+
+    proc.stdout.on('data', (chunk) => {
+      const text = chunk.toString();
+      fullOutput += text;
+
+      const codeMatch = text.match(/Device code:\s*([A-Z0-9-]+)/i) || fullOutput.match(/Device code:\s*([A-Z0-9-]+)/i);
+      const urlMatch =
+        text.match(/https:\/\/in\.auth\.entire\.io\/cli\/auth\?user_code=([A-Z0-9-]+)/i) ||
+        fullOutput.match(/https:\/\/in\.auth\.entire\.io\/cli\/auth\?user_code=([A-Z0-9-]+)/i);
+
+      if ((codeMatch || urlMatch) && !responded) {
+        clearTimeout(timeout);
+        responded = true;
+        const code = codeMatch ? codeMatch[1] : urlMatch ? urlMatch[1] : '';
+        const url = urlMatch ? urlMatch[0] : `https://in.auth.entire.io/cli/auth?user_code=${code}`;
+        res.json({ code, url, status: 'waiting_for_approval' });
+      }
+    });
+
+    proc.on('exit', (code) => {
+      activeEntireProc = null;
+      if (!responded) {
+        clearTimeout(timeout);
+        responded = true;
+        res.status(500).json({ error: `Entire CLI exited with code ${code}`, output: fullOutput });
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * Check Entire CLI login context
+ */
+apiRouter.get('/entire/status', async (req: Request, res: Response) => {
+  try {
+    const { stdout } = await execAsync('entire auth contexts || true');
+    const hasContext = !stdout.includes('No login contexts') && stdout.trim().length > 0;
+    res.json({ authenticated: hasContext, output: stdout.trim() });
+  } catch (err: any) {
+    res.json({ authenticated: false, error: err.message });
   }
 });
 

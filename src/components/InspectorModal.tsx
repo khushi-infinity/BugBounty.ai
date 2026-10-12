@@ -63,6 +63,27 @@ export const InspectorModal: React.FC<InspectorModalProps> = ({
   // Form state for keys
   const [inputKeys, setInputKeys] = useState(keys);
   const [testStatus, setTestStatus] = useState<Record<string, string>>({});
+  const [entireAuth, setEntireAuth] = useState<{
+    code?: string;
+    url?: string;
+    loading?: boolean;
+    authenticated?: boolean;
+  } | null>(null);
+
+  const handleTriggerEntireLogin = async () => {
+    setEntireAuth({ loading: true });
+    try {
+      const res = await fetch('/api/entire/login', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        setEntireAuth({ code: data.code, url: data.url, loading: false });
+      } else {
+        setEntireAuth(null);
+      }
+    } catch {
+      setEntireAuth(null);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -436,6 +457,41 @@ export const InspectorModal: React.FC<InspectorModalProps> = ({
               <span className="font-pixel text-[10px] bg-purple-950 text-purple-300 px-2.5 py-1 rounded border border-purple-500/40">
                 entire enable (Active on branch main)
               </span>
+            </div>
+
+            {/* Entire CLI Account Linking Card */}
+            <div className="bg-purple-950/30 border border-purple-500/40 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <span className="font-pixel text-[11px] text-purple-300 block">
+                  Entire CLI Account Linking
+                </span>
+                <p className="text-[10px] font-code text-slate-400 mt-0.5">
+                  Link your Entire account so sessions and checkpoints publish to your dashboard.
+                </p>
+                {entireAuth?.url && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                    <span className="font-pixel text-[10px] text-amber-300 bg-amber-950/80 px-2 py-0.5 rounded border border-amber-500/40">
+                      Code: {entireAuth.code}
+                    </span>
+                    <a
+                      href={entireAuth.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-code text-xs text-purple-300 hover:text-purple-200 underline flex items-center gap-1 bg-purple-900/60 px-2.5 py-0.5 rounded"
+                    >
+                      Authorize in Browser <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={handleTriggerEntireLogin}
+                disabled={entireAuth?.loading}
+                className="shrink-0 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-pixel text-[10px] rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {entireAuth?.loading ? 'Generating...' : 'Get Login Link'}
+              </button>
             </div>
 
             {checkpoints.length === 0 ? (
