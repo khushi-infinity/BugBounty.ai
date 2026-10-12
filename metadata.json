@@ -2,5 +2,7 @@
   "name": "BugBounty.ai - Autonomous Code Fixer",
   "description": "2D pixel-art dollhouse software agency with autonomous AI agents finding bugs, saving checkpoints to Entire.io, logging traces to Neatlogs, and paying bounties with CFO.ai powered by Google Gemini.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
