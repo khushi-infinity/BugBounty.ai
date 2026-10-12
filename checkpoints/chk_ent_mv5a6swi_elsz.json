@@ -1,0 +1,9 @@
+{
+  "checkpointId": "chk_ent_mv5a6swi_elsz",
+  "issueId": "ISSUE-3010",
+  "bugTitle": "Off-by-one index out of bounds error in calculateBatchTotal",
+  "originalCode": "// Buggy loop: index out of bounds\nfunction calculateBatchTotal(items) {\n  let total = 0;\n  // BUG: using <= items.length causes items[items.length] to be undefined!\n  for (let i = 0; i <= items.length; i++) {\n    total += items[i].price; // TypeError: Cannot read property 'price' of undefined\n  }\n  return total;\n}",
+  "finalCode": "function calculateBatchTotal(items) {\n  let total = 0;\n  for (let i = 0; i < items.length; i++) {\n    total += items[i].price;\n  }\n  return total;\n}",
+  "testCase": "describe('calculateBatchTotal', () => {\n  it('should correctly sum prices across all items without throwing TypeError', () => {\n    const items = [{ price: 10 }, { price: 20 }, { price: 30 }];\n    expect(calculateBatchTotal(items)).toBe(60);\n  });\n  it('should return 0 for an empty array', () => {\n    expect(calculateBatchTotal([])).toBe(0);\n  });\n});",
+  "timestamp": "2026-10-12T13:21:54.619Z"
+}
