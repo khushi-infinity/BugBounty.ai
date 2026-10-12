@@ -10,6 +10,7 @@ import {
   DollarSign,
   FileCode,
   GitBranch,
+  Github,
   Key,
   Layers,
   Terminal,
@@ -27,11 +28,12 @@ import {
   AgentState,
   CheckpointData,
   ElevatorState,
+  GitHubPushRecord,
   IntegrationTrace,
   PaymentRecord,
   WorkflowProgressStep,
   WorkflowStreamEvent,
-} from './types/agent';
+} from './types/agent.ts';
 import { sfx } from './utils/sound';
 
 const INITIAL_AGENTS: AgentState[] = [
@@ -106,12 +108,13 @@ export default function App() {
   const [traces, setTraces] = useState<IntegrationTrace[]>([]);
   const [checkpoints, setCheckpoints] = useState<CheckpointData[]>([]);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
+  const [githubPushes, setGithubPushes] = useState<GitHubPushRecord[]>([]);
   const [treasuryBalance, setTreasuryBalance] = useState<number>(12500);
   const [currentStep, setCurrentStep] = useState<WorkflowProgressStep | null>(null);
 
   // Modals state
   const [inspectorOpen, setInspectorOpen] = useState<boolean>(false);
-  const [inspectorTab, setInspectorTab] = useState<'traces' | 'entire' | 'cfo' | 'neatlogs' | 'keys'>('traces');
+  const [inspectorTab, setInspectorTab] = useState<'traces' | 'entire' | 'cfo' | 'neatlogs' | 'github' | 'keys'>('traces');
   const [diffModalOpen, setDiffModalOpen] = useState<boolean>(false);
   const [completedResult, setCompletedResult] = useState<any>(null);
 
@@ -124,6 +127,10 @@ export default function App() {
     neatlogs: '',
     entire: '',
     cfo: '',
+    githubToken: '',
+    githubOwner: '',
+    githubRepo: '',
+    githubBranch: 'main',
   });
 
   // Load configured keys status from server on mount
@@ -348,6 +355,11 @@ export default function App() {
         sfx.playCoinPayout();
         break;
 
+      case 'github_push':
+        setGithubPushes((prev) => [data, ...prev]);
+        showToast(data.message || 'GitHub auto-push completed!', data.success ? 'success' : 'warn');
+        break;
+
       case 'workflow_complete':
         setCompletedResult(data);
         showToast('Bug fix verified and bounty paid!', 'success');
@@ -404,6 +416,21 @@ export default function App() {
               <span className="hidden sm:inline">Inspect</span>
               <span className="font-mono text-[10px] bg-slate-800 px-1 py-0.2 rounded text-cyan-300">
                 {traces.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => {
+                setInspectorTab('github');
+                setInspectorOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-200 rounded-lg border border-slate-700 transition-colors"
+              title="GitHub Commits & Auto-Pushes via Octokit"
+            >
+              <Github className="w-3.5 h-3.5 text-blue-400" />
+              <span className="hidden sm:inline">GitHub</span>
+              <span className="font-mono text-[10px] bg-slate-800 px-1 py-0.2 rounded text-blue-300">
+                {githubPushes.length}
               </span>
             </button>
 
@@ -528,11 +555,12 @@ export default function App() {
         traces={traces}
         checkpoints={checkpoints}
         payments={payments}
+        githubPushes={githubPushes}
         activeTab={inspectorTab}
         keys={keys}
         onSaveKeys={(newKeys) => {
           setKeys(newKeys);
-          showToast('API keys saved for live agent workflow', 'success');
+          showToast('API keys & GitHub settings saved', 'success');
         }}
         treasuryBalance={treasuryBalance}
       />

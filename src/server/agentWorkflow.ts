@@ -1,10 +1,36 @@
 import { GoogleGenAI } from '@google/genai';
+import { init as initNeatlogs, trace as neatTrace, wrapGoogleGenAI } from 'neatlogs';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import fs from 'fs';
+import path from 'path';
 import {
   CheckpointData,
   IntegrationTrace,
   PaymentRecord,
   WorkflowStreamEvent,
 } from '../types/agent.ts';
+import { pushWorkflowToGitHub } from './githubService.ts';
+
+const execAsync = promisify(exec);
+
+// Initialize official Neatlogs SDK with project key
+let neatlogsInitialized = false;
+export async function ensureNeatlogs() {
+  if (neatlogsInitialized) return;
+  try {
+    await initNeatlogs({
+      apiKey: process.env.NEATLOGS_API_KEY || 'xlqi5ByrSZojoFbUpcI-VsxM_gTCpSOU',
+      endpoint: process.env.NEATLOGS_ENDPOINT || 'https://ingest.neatlogs.com',
+      workflowName: 'bugbounty-autonomous-fixer',
+      tags: ['bugbounty-ai', 'autonomous-qa', 'code-review', 'cfo-bounty'],
+    });
+    neatlogsInitialized = true;
+    console.log('[Neatlogs SDK] Connected to https://ingest.neatlogs.com (Project: a52ebdf3-6dbb-448d-91cd-f8cb4090921b)');
+  } catch (err) {
+    console.warn('[Neatlogs SDK] Note:', err);
+  }
+}
 
 // In-memory ledger balance simulation initial state
 let currentLedgerBalance = 12450.0;
@@ -16,6 +42,10 @@ export interface WorkflowOptions {
     neatlogs?: string;
     entire?: string;
     cfo?: string;
+    githubToken?: string;
+    githubOwner?: string;
+    githubRepo?: string;
+    githubBranch?: string;
   };
 }
 
@@ -55,7 +85,8 @@ export async function callGemini(
   }
 
   try {
-    const ai = new GoogleGenAI({
+    await ensureNeatlogs();
+    const rawAi = new GoogleGenAI({
       apiKey,
       httpOptions: {
         headers: {
@@ -63,6 +94,8 @@ export async function callGemini(
         },
       },
     });
+    // Neatlogs official SDK proxy wrapper for Google GenAI tracing
+    const ai = wrapGoogleGenAI(rawAi);
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.8-flash',
@@ -716,20 +749,45 @@ Output strictly raw JSON without markdown.`;
       message: `Payment cleared via CFO.ai! TX: ${cfoResult.payment.txHash.slice(0, 10)}... QA Agent account credited!`,
     });
 
-    // 8. Celebration & Final Return
+    // 8. Auto-push to configured GitHub repository via Octokit
     emitEvent('step_update', {
       step: 7,
       totalSteps: 7,
-      title: 'Workflow Complete: Bug Fixed & Bounty Settled',
-      agent: 'qa',
-      status: 'completed',
+      title: 'Auto-Pushing Code Fix to GitHub & Finalizing',
+      agent: 'reviewer',
+      status: 'in_progress',
     });
+
+    const finalVerifiedCode = reviewData.finalCleanCode || diagnosisData.proposedFix;
+
+    const githubResult = await pushWorkflowToGitHub({
+      checkpointId: entireResult.checkpoint.id,
+      issueId: entireResult.checkpoint.issueId,
+      bugTitle: diagnosisData.bugTitle,
+      originalCode: code,
+      finalCode: finalVerifiedCode,
+      testCase: diagnosisData.testCase,
+      token: keys?.githubToken,
+      owner: keys?.githubOwner,
+      repo: keys?.githubRepo,
+      branch: keys?.githubBranch,
+    });
+
+    emitEvent('github_push', githubResult);
+
+    const neatTraceGit = await logToNeatlogs(
+      `GitHub auto-push: ${githubResult.message}`,
+      githubResult.success ? 'success' : 'warn',
+      { commitSha: githubResult.commitSha, repo: githubResult.repo, simulated: githubResult.simulated },
+      keys?.neatlogs
+    );
+    emitEvent('neatlogs_trace', neatTraceGit);
 
     // QA celebrates
     emitEvent('agent_move', { id: 'qa', floor: 2, position: 'review_desk', xPercent: 48, action: 'celebrating' });
     emitEvent('agent_speak', {
       id: 'qa',
-      message: `Woohoo! $50 bounty received in my wallet! Bug fixed and verified!`,
+      message: `Woohoo! $50 bounty in my wallet! Fix committed to GitHub (${githubResult.commitSha.slice(0, 7)})!`,
     });
 
     emitEvent('workflow_complete', {
@@ -737,13 +795,20 @@ Output strictly raw JSON without markdown.`;
       review: reviewData,
       checkpoint: entireResult.checkpoint,
       payment: cfoResult.payment,
+      github: githubResult,
       originalCode: code,
-      finalCode: reviewData.finalCleanCode || diagnosisData.proposedFix,
+      finalCode: finalVerifiedCode,
       stats: {
         totalSteps: 7,
-        totalTimeSeconds: 4.8,
+        totalTimeSeconds: 5.2,
         bountyPaid: '$50.00 USD',
-        sponsorStack: ['Google Gemini 3.8 Flash', 'Entire.io Checkpoints', 'CFO.ai Ledger', 'Neatlogs Tracing'],
+        sponsorStack: [
+          'Google Gemini 3.8 Flash',
+          'Entire.io Checkpoints',
+          'CFO.ai Ledger',
+          'Neatlogs Tracing',
+          'GitHub Octokit Auto-Push',
+        ],
       },
     });
   } catch (err: any) {

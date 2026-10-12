@@ -9,6 +9,7 @@ interface CodeDiffModalProps {
     review?: any;
     checkpoint?: any;
     payment?: any;
+    github?: any;
     originalCode?: string;
     finalCode?: string;
   } | null;
@@ -69,7 +70,7 @@ export const CodeDiffModal: React.FC<CodeDiffModalProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-[10px] font-pixel bg-slate-900 text-emerald-400 px-2 py-1 rounded border border-emerald-500/30 flex items-center gap-1">
                 <Shield className="w-3 h-3" />
                 Score: {result.review?.securityScore || 'A+'}
@@ -77,6 +78,16 @@ export const CodeDiffModal: React.FC<CodeDiffModalProps> = ({
               <span className="text-[10px] font-pixel bg-amber-950 text-amber-300 px-2 py-1 rounded border border-amber-500/40">
                 Bounty: $50.00 PAID
               </span>
+              {result.github && (
+                <a
+                  href={result.github.commitUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[10px] font-pixel bg-blue-950 text-blue-300 hover:text-blue-200 px-2 py-1 rounded border border-blue-500/40 flex items-center gap-1"
+                >
+                  GitHub: {result.github.commitSha.slice(0, 7)}
+                </a>
+              )}
             </div>
           </div>
 

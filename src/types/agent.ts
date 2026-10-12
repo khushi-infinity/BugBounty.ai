@@ -89,6 +89,20 @@ export interface PaymentRecord {
   ledgerBalanceAfter: number;
 }
 
+export interface GitHubPushRecord {
+  success: boolean;
+  commitSha: string;
+  commitUrl: string;
+  repo: string;
+  owner: string;
+  branch: string;
+  filePath: string;
+  timestamp: string;
+  simulated: boolean;
+  message: string;
+  error?: string;
+}
+
 export interface WorkflowProgressStep {
   step: number;
   totalSteps: number;
@@ -105,6 +119,7 @@ export interface WorkflowStreamEvent {
     | 'neatlogs_trace'
     | 'entire_checkpoint'
     | 'cfo_payment'
+    | 'github_push'
     | 'gemini_result'
     | 'step_update'
     | 'workflow_complete'

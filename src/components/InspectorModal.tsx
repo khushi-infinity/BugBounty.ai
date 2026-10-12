@@ -5,15 +5,22 @@ import {
   Copy,
   CreditCard,
   DollarSign,
+  ExternalLink,
   FileCode,
   GitBranch,
+  Github,
   Key,
   Layers,
   Send,
   Terminal,
   X,
 } from 'lucide-react';
-import { CheckpointData, IntegrationTrace, PaymentRecord } from '../types/agent';
+import {
+  CheckpointData,
+  GitHubPushRecord,
+  IntegrationTrace,
+  PaymentRecord,
+} from '../types/agent.ts';
 
 interface InspectorModalProps {
   isOpen: boolean;
@@ -21,14 +28,19 @@ interface InspectorModalProps {
   traces: IntegrationTrace[];
   checkpoints: CheckpointData[];
   payments: PaymentRecord[];
-  activeTab?: 'traces' | 'entire' | 'cfo' | 'neatlogs' | 'keys';
+  githubPushes?: GitHubPushRecord[];
+  activeTab?: 'traces' | 'entire' | 'cfo' | 'neatlogs' | 'github' | 'keys';
   keys: {
     gemini: string;
     neatlogs: string;
     entire: string;
     cfo: string;
+    githubToken?: string;
+    githubOwner?: string;
+    githubRepo?: string;
+    githubBranch?: string;
   };
-  onSaveKeys: (keys: { gemini: string; neatlogs: string; entire: string; cfo: string }) => void;
+  onSaveKeys: (keys: any) => void;
   treasuryBalance: number;
 }
 
@@ -38,12 +50,13 @@ export const InspectorModal: React.FC<InspectorModalProps> = ({
   traces,
   checkpoints,
   payments,
+  githubPushes = [],
   activeTab: initialTab = 'traces',
   keys,
   onSaveKeys,
   treasuryBalance,
 }) => {
-  const [tab, setTab] = useState<'traces' | 'entire' | 'cfo' | 'neatlogs' | 'keys'>(initialTab);
+  const [tab, setTab] = useState<'traces' | 'entire' | 'cfo' | 'neatlogs' | 'github' | 'keys'>(initialTab);
   const [selectedTrace, setSelectedTrace] = useState<IntegrationTrace | null>(traces[0] || null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -59,17 +72,35 @@ export const InspectorModal: React.FC<InspectorModalProps> = ({
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleTestKey = async (service: 'gemini' | 'neatlogs' | 'entire' | 'cfo') => {
+  const handleTestKey = async (service: 'gemini' | 'neatlogs' | 'entire' | 'cfo' | 'github') => {
     setTestStatus((prev) => ({ ...prev, [service]: 'testing' }));
     try {
+      const payload: any = {
+        service,
+        key: service === 'github' ? inputKeys.githubToken : (inputKeys as any)[service],
+      };
+      if (service === 'github') {
+        payload.owner = inputKeys.githubOwner;
+        payload.repo = inputKeys.githubRepo;
+      }
+
       const res = await fetch('/api/test-integration', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ service, key: inputKeys[service] }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (res.ok) {
-        setTestStatus((prev) => ({ ...prev, [service]: 'success' }));
+        if (service === 'github') {
+          setTestStatus((prev) => ({
+            ...prev,
+            github: data.ok
+              ? `Authenticated as @${data.user}${data.repoFound ? ' (Repo verified)' : ''}`
+              : `Error: ${data.error}`,
+          }));
+        } else {
+          setTestStatus((prev) => ({ ...prev, [service]: 'success' }));
+        }
       } else {
         setTestStatus((prev) => ({ ...prev, [service]: `error: ${data.error || 'Failed'}` }));
       }
@@ -90,7 +121,7 @@ export const InspectorModal: React.FC<InspectorModalProps> = ({
                 Live Integrations &amp; Dashboards Inspector
               </h2>
               <p className="font-code text-[10px] text-slate-400">
-                Inspect raw HTTP requests, headers &amp; receipts sent to Gemini, Neatlogs, Entire.io &amp; CFO.ai
+                Inspect raw HTTP requests, Entire checkpoints, CFO.ai payouts &amp; Octokit GitHub commits
               </p>
             </div>
           </div>
@@ -114,6 +145,18 @@ export const InspectorModal: React.FC<InspectorModalProps> = ({
           >
             <Activity className="w-3.5 h-3.5" />
             Live HTTP Traces ({traces.length})
+          </button>
+
+          <button
+            onClick={() => setTab('github')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-code text-xs transition-colors whitespace-nowrap ${
+              tab === 'github'
+                ? 'bg-blue-600 text-white font-bold'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+            }`}
+          >
+            <Github className="w-3.5 h-3.5" />
+            GitHub Commits ({githubPushes.length})
           </button>
 
           <button
@@ -161,7 +204,7 @@ export const InspectorModal: React.FC<InspectorModalProps> = ({
             }`}
           >
             <Key className="w-3.5 h-3.5" />
-            API Keys &amp; Setup
+            API Keys &amp; Git Setup
           </button>
         </div>
 
@@ -308,7 +351,77 @@ export const InspectorModal: React.FC<InspectorModalProps> = ({
           </div>
         )}
 
-        {/* Tab 2: Entire.io Checkpoints */}
+        {/* Tab 2: GitHub Commits via Octokit */}
+        {tab === 'github' && (
+          <div className="flex-1 p-5 overflow-y-auto space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div>
+                <h3 className="font-pixel text-xs text-blue-400 flex items-center gap-2">
+                  <Github className="w-4 h-4" />
+                  Octokit GitHub Auto-Push Pipeline
+                </h3>
+                <p className="font-code text-xs text-slate-400">
+                  Every successful 'Run Agents' workflow pushes verified fixes and Entire checkpoints to GitHub
+                </p>
+              </div>
+              <span className="font-pixel text-[10px] bg-blue-950 text-blue-300 px-2.5 py-1 rounded border border-blue-500/40">
+                Octokit API: Active
+              </span>
+            </div>
+
+            {githubPushes.length === 0 ? (
+              <div className="text-center py-16 text-slate-500 font-code text-xs">
+                No GitHub commits pushed yet. Run the agents to watch Octokit commit and push the verified patch!
+              </div>
+            ) : (
+              githubPushes.map((p, idx) => (
+                <div
+                  key={idx}
+                  className="bg-slate-950 border-2 border-blue-500/30 rounded-xl p-4 space-y-3 shadow-lg"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-pixel text-xs text-blue-300">
+                        {p.repo}@{p.branch}
+                      </span>
+                      <span
+                        className={`text-[9px] font-pixel px-1.5 py-0.5 rounded ${
+                          p.success ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/40' : 'bg-rose-950 text-rose-400'
+                        }`}
+                      >
+                        {p.simulated ? 'COMMITTED (LOCAL GIT)' : 'PUSHED TO GITHUB'}
+                      </span>
+                    </div>
+                    <div className="text-xs font-mono text-slate-400 flex items-center gap-2">
+                      <span>SHA: {p.commitSha.slice(0, 7)}</span>
+                      {p.commitUrl && (
+                        <a
+                          href={p.commitUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-blue-400 hover:text-blue-300 flex items-center gap-1 text-[11px]"
+                        >
+                          View Commit <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="text-xs font-code text-slate-300">
+                    <span className="text-slate-500">File Path: </span>
+                    <span className="font-mono text-amber-300">{p.filePath}</span>
+                  </div>
+
+                  <p className="text-xs font-code text-slate-400 bg-slate-900/60 p-2.5 rounded border border-slate-800">
+                    {p.message}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Tab 3: Entire.io Checkpoints */}
         {tab === 'entire' && (
           <div className="flex-1 p-5 overflow-y-auto space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
@@ -317,11 +430,11 @@ export const InspectorModal: React.FC<InspectorModalProps> = ({
                   Entire.io Context &amp; Checkpoints Registry
                 </h3>
                 <p className="font-code text-xs text-slate-400">
-                  Autonomous sessions captured and linked to git commits
+                  Autonomous sessions captured and linked to git commits via Entire CLI
                 </p>
               </div>
               <span className="font-pixel text-[10px] bg-purple-950 text-purple-300 px-2.5 py-1 rounded border border-purple-500/40">
-                entire enable (Active)
+                entire enable (Active on branch main)
               </span>
             </div>
 
@@ -383,7 +496,7 @@ export const InspectorModal: React.FC<InspectorModalProps> = ({
           </div>
         )}
 
-        {/* Tab 3: CFO.ai Ledger & Bounties */}
+        {/* Tab 4: CFO.ai Ledger & Bounties */}
         {tab === 'cfo' && (
           <div className="flex-1 p-5 overflow-y-auto space-y-4">
             {/* Header & Balance */}
@@ -465,7 +578,7 @@ export const InspectorModal: React.FC<InspectorModalProps> = ({
           </div>
         )}
 
-        {/* Tab 4: Neatlogs Telemetry */}
+        {/* Tab 5: Neatlogs Telemetry */}
         {tab === 'neatlogs' && (
           <div className="flex-1 p-5 overflow-y-auto space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
@@ -478,7 +591,7 @@ export const InspectorModal: React.FC<InspectorModalProps> = ({
                 </p>
               </div>
               <span className="font-pixel text-[10px] bg-emerald-950 text-emerald-300 px-2.5 py-1 rounded border border-emerald-500/40">
-                Ingestion: api.neatlogs.com/v1/traces
+                Project: a52ebdf3-6dbb-448d-91cd-f8cb4090921b
               </span>
             </div>
 
@@ -520,7 +633,7 @@ export const InspectorModal: React.FC<InspectorModalProps> = ({
           </div>
         )}
 
-        {/* Tab 5: API Keys & Setup */}
+        {/* Tab 6: API Keys & Git Setup */}
         {tab === 'keys' && (
           <div className="flex-1 p-5 overflow-y-auto space-y-5">
             <div>
@@ -528,11 +641,74 @@ export const InspectorModal: React.FC<InspectorModalProps> = ({
                 API Keys &amp; Live Integration Settings
               </h3>
               <p className="font-code text-xs text-slate-400">
-                Enter your sponsor API keys to sync data directly to your live Entire, CFO.ai, and Neatlogs dashboards.
+                Configure your sponsor keys and GitHub repository to auto-commit and push fixes.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* GitHub Settings */}
+              <div className="sm:col-span-2 p-3.5 bg-slate-950 border-2 border-blue-500/40 rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="font-pixel text-xs text-blue-400 flex items-center gap-1.5">
+                    <Github className="w-4 h-4" />
+                    GitHub Octokit Auto-Push Settings
+                  </label>
+                  <button
+                    onClick={() => handleTestKey('github')}
+                    className="text-[10px] font-code px-2 py-0.5 bg-blue-900/60 hover:bg-blue-850 rounded text-blue-200 border border-blue-500/40"
+                  >
+                    Test Octokit Connection
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">GitHub Personal Access Token (PAT):</label>
+                    <input
+                      type="password"
+                      placeholder="ghp_..."
+                      value={inputKeys.githubToken || ''}
+                      onChange={(e) => setInputKeys({ ...inputKeys, githubToken: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 font-mono text-xs text-slate-100 focus:outline-none focus:border-blue-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">Owner / Organization:</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. khushisarawagi08"
+                      value={inputKeys.githubOwner || ''}
+                      onChange={(e) => setInputKeys({ ...inputKeys, githubOwner: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 font-mono text-xs text-slate-100 focus:outline-none focus:border-blue-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">Repository Name:</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. bugbounty-ai-fixes"
+                      value={inputKeys.githubRepo || ''}
+                      onChange={(e) => setInputKeys({ ...inputKeys, githubRepo: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 font-mono text-xs text-slate-100 focus:outline-none focus:border-blue-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">Target Branch:</label>
+                    <input
+                      type="text"
+                      placeholder="main"
+                      value={inputKeys.githubBranch || 'main'}
+                      onChange={(e) => setInputKeys({ ...inputKeys, githubBranch: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 font-mono text-xs text-slate-100 focus:outline-none focus:border-blue-400"
+                    />
+                  </div>
+                </div>
+                {testStatus.github && (
+                  <div className="text-[11px] font-mono text-blue-300 bg-blue-950/40 p-2 rounded border border-blue-500/30">
+                    Status: {testStatus.github}
+                  </div>
+                )}
+              </div>
+
               {/* Gemini */}
               <div className="p-3.5 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
                 <div className="flex items-center justify-between">
@@ -575,7 +751,7 @@ export const InspectorModal: React.FC<InspectorModalProps> = ({
                 </div>
                 <input
                   type="password"
-                  placeholder="Defaults to server process.env.NEATLOGS_API_KEY"
+                  placeholder="xlqi5ByrSZojoFbUpcI-VsxM_gTCpSOU"
                   value={inputKeys.neatlogs}
                   onChange={(e) => setInputKeys({ ...inputKeys, neatlogs: e.target.value })}
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 font-mono text-xs text-slate-100 focus:outline-none focus:border-emerald-400"
@@ -650,7 +826,7 @@ export const InspectorModal: React.FC<InspectorModalProps> = ({
                 }}
                 className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-pixel text-xs rounded-lg font-bold shadow-lg shadow-amber-500/20"
               >
-                SAVE &amp; APPLY KEYS
+                SAVE &amp; APPLY SETTINGS
               </button>
             </div>
           </div>

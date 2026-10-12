@@ -6,6 +6,7 @@ import {
   runAgentWorkflow,
   saveToEntire,
 } from './agentWorkflow.ts';
+import { testGitHubConnection } from './githubService.ts';
 
 export const apiRouter = express.Router();
 
@@ -23,6 +24,7 @@ apiRouter.get('/config', (req: Request, res: Response) => {
       neatlogs: Boolean(process.env.NEATLOGS_API_KEY),
       entire: Boolean(process.env.ENTIRE_API_KEY),
       cfo: Boolean(process.env.CFO_API_KEY),
+      github: Boolean(process.env.GITHUB_TOKEN),
     },
     version: '1.0.0',
     model: 'gemini-3.8-flash',
@@ -90,7 +92,7 @@ apiRouter.post('/run-agents', async (req: Request, res: Response) => {
  * Direct single test of any integration
  */
 apiRouter.post('/test-integration', async (req: Request, res: Response) => {
-  const { service, key } = req.body || {};
+  const { service, key, owner, repo } = req.body || {};
 
   try {
     if (service === 'gemini') {
@@ -118,6 +120,9 @@ apiRouter.post('/test-integration', async (req: Request, res: Response) => {
       res.json(result);
     } else if (service === 'cfo') {
       const result = await payBounty(1.0, 'test_qa_wallet', 'Smoke test ping verification', key);
+      res.json(result);
+    } else if (service === 'github') {
+      const result = await testGitHubConnection(key || process.env.GITHUB_TOKEN || '', owner, repo);
       res.json(result);
     } else {
       res.status(400).json({ error: `Unknown service: ${service}` });
