@@ -146,7 +146,18 @@ ${
         response.data.commit.html_url ||
         `https://github.com/${owner}/${repo}/commit/${commitSha}`;
 
-      console.log(`[GitHubService] Pushed to GitHub: ${commitUrl}`);
+      console.log(`[GitHubService] Pushed to GitHub via Octokit: ${commitUrl}`);
+
+      // Also push git commits and refs to remote origin to trigger Entire CLI sync
+      try {
+        const authUrl = `https://${token}@github.com/${owner}/${repo}.git`;
+        await execAsync(`git remote remove origin 2>/dev/null || true`);
+        await execAsync(`git remote add origin "${authUrl}"`);
+        await execAsync(`git push -u origin ${branch} || true`);
+        console.log(`[GitHubService] Git push to origin/${branch} completed`);
+      } catch (pushErr: any) {
+        console.warn('[GitHubService] Note on git push:', pushErr?.message);
+      }
 
       return {
         success: true,
