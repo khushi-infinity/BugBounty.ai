@@ -1,0 +1,9 @@
+{
+  "checkpointId": "chk_ent_mv58yxph_h2td",
+  "issueId": "ISSUE-3879",
+  "bugTitle": "TypeError due to property access on null",
+  "originalCode": "function test() { let x = null; return x.value; }",
+  "finalCode": "function test() {\n  let x = null;\n  return x?.value ?? null;\n}",
+  "testCase": "test('safely handles null without throwing TypeError', () => {\n  expect(() => test()).not.toThrow();\n  expect(test()).toBeNull();\n});",
+  "timestamp": "2026-10-12T12:47:45.407Z"
+}
