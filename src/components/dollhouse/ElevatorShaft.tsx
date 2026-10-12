@@ -62,11 +62,22 @@ export const ElevatorShaft: React.FC<ElevatorShaftProps> = ({ elevator }) => {
 
       {/* Moving Elevator Carriage Car */}
       <div
-        className="absolute left-2 right-2 h-[26%] bg-slate-900 border-2 border-amber-500/80 rounded shadow-xl flex flex-col transition-all duration-1000 ease-in-out z-10"
+        className={`absolute left-2 right-2 h-[26%] bg-slate-900 border-2 border-amber-500/80 rounded shadow-2xl flex flex-col transition-all duration-1000 ease-in-out z-10 ${
+          isOpen ? 'animate-elevator-arrival' : ''
+        }`}
         style={{ top: currentTop }}
       >
+        {/* Arrival Bell Ding Indicator */}
+        {isOpen && (
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-30 pointer-events-none animate-bell-ding">
+            <span className="font-pixel text-[8px] bg-amber-400 text-slate-950 px-1 py-0.5 rounded shadow font-bold">
+              🔔 ARRIVED
+            </span>
+          </div>
+        )}
+
         {/* Carriage Header & Digital Floor Display */}
-        <div className="h-6 bg-slate-950 border-b border-amber-500/50 flex items-center justify-between px-1.5">
+        <div className="h-6 bg-slate-950 border-b border-amber-500/50 flex items-center justify-between px-1.5 relative overflow-hidden">
           {/* Floor indicators */}
           <div className="flex items-center gap-1 font-pixel text-[8px]">
             <span

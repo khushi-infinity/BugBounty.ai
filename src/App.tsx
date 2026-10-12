@@ -5,15 +5,7 @@
 
 import React, { useEffect, useState } from 'react';
 import {
-  Activity,
   CheckCircle2,
-  DollarSign,
-  FileCode,
-  GitBranch,
-  Github,
-  Key,
-  Layers,
-  Terminal,
   Volume2,
   VolumeX,
 } from 'lucide-react';
@@ -114,7 +106,7 @@ export default function App() {
 
   // Modals state
   const [inspectorOpen, setInspectorOpen] = useState<boolean>(false);
-  const [inspectorTab, setInspectorTab] = useState<'traces' | 'entire' | 'cfo' | 'neatlogs' | 'github' | 'keys'>('traces');
+  const [inspectorTab, setInspectorTab] = useState<'neatlogs' | 'cfo'>('neatlogs');
   const [diffModalOpen, setDiffModalOpen] = useState<boolean>(false);
   const [completedResult, setCompletedResult] = useState<any>(null);
 
@@ -402,66 +394,25 @@ export default function App() {
             </div>
           </div>
 
-          {/* Integration Links & Quick Actions */}
+          {/* Combined Sponsor Telemetry Action */}
           <div className="flex items-center gap-2 text-xs">
             <button
               onClick={() => {
-                setInspectorTab('traces');
+                setInspectorTab('neatlogs');
                 setInspectorOpen(true);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-200 rounded-lg border border-slate-700 transition-colors"
-              title="Inspect real HTTP calls to Gemini, Neatlogs, Entire.io, and CFO.ai"
+              className="flex items-center gap-2 px-3.5 py-1.5 bg-gradient-to-r from-emerald-950/90 via-slate-900 to-amber-950/90 hover:from-emerald-900 hover:to-amber-900 text-slate-100 rounded-lg border border-slate-700 hover:border-amber-500/50 transition-all shadow-md font-pixel text-[10px] sm:text-xs cursor-pointer"
+              title="View Neatlogs Observability Traces & CFO.ai Payouts"
             >
-              <Activity className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="hidden sm:inline">Inspect</span>
-              <span className="font-mono text-[10px] bg-slate-800 px-1 py-0.2 rounded text-cyan-300">
-                {traces.length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => {
-                setInspectorTab('github');
-                setInspectorOpen(true);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-200 rounded-lg border border-slate-700 transition-colors"
-              title="GitHub Commits & Auto-Pushes via Octokit"
-            >
-              <Github className="w-3.5 h-3.5 text-blue-400" />
-              <span className="hidden sm:inline">GitHub</span>
-              <span className="font-mono text-[10px] bg-slate-800 px-1 py-0.2 rounded text-blue-300">
-                {githubPushes.length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => {
-                setInspectorTab('entire');
-                setInspectorOpen(true);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-200 rounded-lg border border-slate-700 transition-colors"
-              title="Entire.io Checkpoints"
-            >
-              <GitBranch className="w-3.5 h-3.5 text-purple-400" />
-              <span className="hidden sm:inline">Entire</span>
-              <span className="font-mono text-[10px] bg-slate-800 px-1 py-0.2 rounded text-purple-300">
-                {checkpoints.length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => {
-                setInspectorTab('cfo');
-                setInspectorOpen(true);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-200 rounded-lg border border-slate-700 transition-colors"
-              title="CFO.ai Bounties & Ledger"
-            >
-              <DollarSign className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">CFO.ai</span>
-              <span className="font-mono text-[10px] bg-slate-800 px-1 py-0.2 rounded text-amber-300 font-bold">
-                ${payments.length * 50}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-emerald-400">NEATLOGS</span>
+              </div>
+              <span className="text-slate-600 font-code font-normal">|</span>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-400" />
+                <span className="text-amber-400">CFO.AI</span>
+              </div>
             </button>
 
             {completedResult && (
@@ -473,17 +424,6 @@ export default function App() {
                 <span>View PR Fix</span>
               </button>
             )}
-
-            <button
-              onClick={() => {
-                setInspectorTab('keys');
-                setInspectorOpen(true);
-              }}
-              className="p-2 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-700 transition-colors"
-              title="Configure API Keys"
-            >
-              <Key className="w-3.5 h-3.5 text-amber-400" />
-            </button>
 
             <button
               onClick={toggleSound}
@@ -553,15 +493,8 @@ export default function App() {
         isOpen={inspectorOpen}
         onClose={() => setInspectorOpen(false)}
         traces={traces}
-        checkpoints={checkpoints}
         payments={payments}
-        githubPushes={githubPushes}
         activeTab={inspectorTab}
-        keys={keys}
-        onSaveKeys={(newKeys) => {
-          setKeys(newKeys);
-          showToast('API keys & GitHub settings saved', 'success');
-        }}
         treasuryBalance={treasuryBalance}
       />
 

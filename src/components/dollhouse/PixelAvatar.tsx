@@ -25,7 +25,7 @@ export const PixelAvatar: React.FC<PixelAvatarProps> = ({
   return (
     <div
       className={`relative inline-block transition-transform duration-200 ${flipClass} ${
-        isWalking ? 'animate-walk' : ''
+        isWalking ? 'animate-staggered-walk' : ''
       } ${isTyping ? 'animate-typing' : ''} ${isCelebrating ? 'animate-celebrate' : ''}`}
       style={{ imageRendering: 'pixelated' }}
     >

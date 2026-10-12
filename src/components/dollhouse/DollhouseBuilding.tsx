@@ -21,9 +21,9 @@ export const DollhouseBuilding: React.FC<DollhouseBuildingProps> = ({
   activeFloorHighlight = null,
 }) => {
   // Convert floor number to vertical top CSS position for agent container
-  // Floor 3 (top): 4% to 32%
-  // Floor 2 (mid): 37% to 65%
-  // Floor 1 (bot): 70% to 98%
+  // Floor 3 (top): ~17%
+  // Floor 2 (mid): ~50%
+  // Floor 1 (bot): ~83%
   const getAgentFloorTop = (floor: AgentFloor) => {
     switch (floor) {
       case 3:
@@ -33,6 +33,13 @@ export const DollhouseBuilding: React.FC<DollhouseBuildingProps> = ({
       case 1:
         return '83%';
     }
+  };
+
+  const isFloorArrivalActive = (floor: AgentFloor) => {
+    return (
+      activeFloorHighlight === floor ||
+      (elevator.currentFloor === floor && elevator.doorState === 'open')
+    );
   };
 
   return (
@@ -65,20 +72,16 @@ export const DollhouseBuilding: React.FC<DollhouseBuildingProps> = ({
           </span>
         </div>
 
-        {/* Sponsor Tech Badges on Right */}
-        <div className="hidden sm:flex items-center gap-1.5 text-[8px] font-pixel">
-          <span className="bg-blue-950/80 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/30">
-            GEMINI
-          </span>
-          <span className="bg-purple-950/80 text-purple-400 px-1.5 py-0.5 rounded border border-purple-500/30">
-            ENTIRE
-          </span>
-          <span className="bg-amber-950/80 text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/30">
-            CFO.AI
-          </span>
-          <span className="bg-emerald-950/80 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/30">
-            NEATLOGS
-          </span>
+        {/* Live Status Indicators on Right */}
+        <div className="hidden sm:flex items-center gap-2 text-[8px] font-pixel">
+          <div className="flex items-center gap-1 bg-emerald-950/80 text-emerald-400 px-2 py-1 rounded border border-emerald-500/40">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>NEATLOGS LIVE</span>
+          </div>
+          <div className="flex items-center gap-1 bg-amber-950/80 text-amber-400 px-2 py-1 rounded border border-amber-500/40">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+            <span>CFO.AI TREASURY</span>
+          </div>
         </div>
       </div>
 
@@ -91,8 +94,10 @@ export const DollhouseBuilding: React.FC<DollhouseBuildingProps> = ({
         <div className="relative flex-1 flex flex-col h-full bg-slate-900">
           {/* Floor 3: QA Dept */}
           <div
-            className={`h-1/3 transition-all duration-300 ${
-              activeFloorHighlight === 3 ? 'ring-2 ring-cyan-400/50 bg-cyan-950/20' : ''
+            className={`h-1/3 transition-all duration-500 ${
+              isFloorArrivalActive(3)
+                ? 'ring-2 ring-cyan-400/60 bg-cyan-950/30 animate-floor-glow'
+                : ''
             }`}
           >
             <FloorQA />
@@ -100,8 +105,10 @@ export const DollhouseBuilding: React.FC<DollhouseBuildingProps> = ({
 
           {/* Floor 2: Review Dept */}
           <div
-            className={`h-1/3 transition-all duration-300 ${
-              activeFloorHighlight === 2 ? 'ring-2 ring-purple-400/50 bg-purple-950/20' : ''
+            className={`h-1/3 transition-all duration-500 ${
+              isFloorArrivalActive(2)
+                ? 'ring-2 ring-purple-400/60 bg-purple-950/30 animate-floor-glow'
+                : ''
             }`}
           >
             <FloorReview />
@@ -109,32 +116,40 @@ export const DollhouseBuilding: React.FC<DollhouseBuildingProps> = ({
 
           {/* Floor 1: Finance Dept */}
           <div
-            className={`h-1/3 transition-all duration-300 ${
-              activeFloorHighlight === 1 ? 'ring-2 ring-amber-400/50 bg-amber-950/20' : ''
+            className={`h-1/3 transition-all duration-500 ${
+              isFloorArrivalActive(1)
+                ? 'ring-2 ring-amber-400/60 bg-amber-950/30 animate-floor-glow'
+                : ''
             }`}
           >
             <FloorFinance treasuryBalance={treasuryBalance} />
           </div>
 
           {/* 3. Physical Agents Overlay Layer */}
-          {/* Each agent moves physically across floors and horizontally */}
+          {/* Each agent moves physically across floors and horizontally with staggered timing */}
           {agents.map((agent) => {
             const isPassenger = elevator.passengerId === agent.id;
-            const floorTop = getAgentFloorTop(agent.floor);
+
+            // Synchronize vertical position with elevator carriage when riding
+            const floorTop = isPassenger
+              ? getAgentFloorTop(elevator.currentFloor)
+              : getAgentFloorTop(agent.floor);
 
             // If riding elevator, position agent inside the elevator carriage on the left
             const computedLeft = isPassenger
-              ? '-60px' // inside elevator shaft
+              ? '-52px' // inside elevator carriage
               : `${agent.xPercent}%`;
 
             return (
               <div
                 key={agent.id}
-                className="absolute z-20 transition-all duration-1000 ease-in-out pointer-events-none"
+                className="absolute z-20 pointer-events-none"
                 style={{
                   top: floorTop,
                   left: computedLeft,
                   transform: 'translate(-50%, -50%)',
+                  transition:
+                    'top 1000ms cubic-bezier(0.34, 1.2, 0.64, 1), left 900ms cubic-bezier(0.25, 1, 0.5, 1)',
                 }}
               >
                 {/* Chat Bubble above agent */}
@@ -156,7 +171,7 @@ export const DollhouseBuilding: React.FC<DollhouseBuildingProps> = ({
                   />
 
                   {/* Character Name Tag Below Avatar */}
-                  <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-950/90 text-slate-300 font-pixel text-[7px] px-1 py-0.5 rounded border border-slate-700/60 pointer-events-none">
+                  <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-950/90 text-slate-300 font-pixel text-[7px] px-1 py-0.5 rounded border border-slate-700/60 pointer-events-none shadow">
                     {agent.name}
                   </div>
                 </div>
@@ -173,7 +188,7 @@ export const DollhouseBuilding: React.FC<DollhouseBuildingProps> = ({
           <span>AGENTS ONLINE: QA (Bugsy), REVIEW (Dr. Patch), FINANCE (Ledger-9000)</span>
         </div>
         <div className="hidden sm:block">
-          STATUS: AUTONOMOUS DISPATCH SYSTEM READY
+          ELEVATOR SHAFT: STATE-SYNCED &amp; KEYFRAME ANIMATED
         </div>
       </div>
     </div>

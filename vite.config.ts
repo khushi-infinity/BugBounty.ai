@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { defineConfig, Plugin } from 'vite';
+import { defineConfig, loadEnv, Plugin } from 'vite';
 import { apiRouter } from './src/server/apiRouter.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -20,7 +20,11 @@ function expressApiPlugin(): Plugin {
   };
 }
 
-export default defineConfig(() => {
+export default defineConfig(({ mode }) => {
+  // Load .env files and populate process.env for the server API router
+  const env = loadEnv(mode, process.cwd(), '');
+  Object.assign(process.env, env);
+
   return {
     plugins: [react(), tailwindcss(), expressApiPlugin()],
     resolve: {

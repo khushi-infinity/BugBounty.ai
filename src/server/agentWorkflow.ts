@@ -163,7 +163,7 @@ export async function logToNeatlogs(
   const key = apiKey || process.env.NEATLOGS_API_KEY || '';
   const startTime = Date.now();
   const traceId = `tr_neat_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-  const endpoint = 'https://api.neatlogs.com/v1/traces';
+  const endpoint = process.env.NEATLOGS_ENDPOINT || 'https://ingest.neatlogs.com';
 
   const payload = {
     service: 'bugbounty.ai-agents',
