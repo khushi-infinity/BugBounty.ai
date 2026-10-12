@@ -1,0 +1,9 @@
+{
+  "checkpointId": "chk_ent_mv5a2ph6_wc0c",
+  "issueId": "ISSUE-4023",
+  "bugTitle": "Off-By-One Index Boundary & Memory Growth",
+  "originalCode": "// Buggy loop: index out of bounds\nfunction calculateBatchTotal(items) {\n  let total = 0;\n  // BUG: using <= items.length causes items[items.length] to be undefined!\n  for (let i = 0; i <= items.length; i++) {\n    total += items[i].price; // TypeError: Cannot read property 'price' of undefined\n  }\n  return total;\n}",
+  "finalCode": "// Fixed boundary condition\nfor (let i = 0; i < items.length; i++) {\n  processItem(items[i]);\n}",
+  "testCase": "test('iterates over exactly array.length items without undefined access', () => {\n  const spy = jest.fn();\n  processBatch([1, 2, 3], spy);\n  expect(spy).toHaveBeenCalledTimes(3);\n});",
+  "timestamp": "2026-10-12T13:18:42.569Z"
+}
